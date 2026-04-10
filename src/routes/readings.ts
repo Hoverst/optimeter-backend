@@ -23,8 +23,7 @@ router.get("/", async (req, res) => {
 
     let query: FirebaseFirestore.Query = db
       .collection("readings")
-      .where("homeId", "==", homeId)
-      .orderBy("readingAt", "desc");
+      .where("homeId", "==", homeId);
 
     if (utility) {
       query = query.where("utility", "==", utility);
@@ -42,6 +41,9 @@ router.get("/", async (req, res) => {
         createdAt: data.createdAt
       };
     });
+
+    // Sort in memory to avoid Firestore composite index requirements
+    readings.sort((a, b) => new Date(b.readingAt).getTime() - new Date(a.readingAt).getTime());
 
     res.json(readings);
   } catch (err) {
