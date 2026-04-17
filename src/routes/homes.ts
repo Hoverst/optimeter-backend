@@ -90,6 +90,53 @@ router.post("/", async (req: AuthedRequest, res) => {
   }
 });
 
+// PUT /homes/:id - update a home (only if owned by user)
+router.put("/:id", async (req: AuthedRequest, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const parsed = createHomeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid payload", details: parsed.error.flatten() });
+    }
+
+    const docRef = db.collection("homes").doc(id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "Home not found" });
+    }
+
+    const data = doc.data();
+    if (data?.userId !== userId) {
+      return res.status(403).json({ error: "Forbidden: You can only update your own homes" });
+    }
+
+    await docRef.update({
+      name: parsed.data.name,
+      address: parsed.data.address
+    });
+
+    const updatedHome: Home = {
+      id: doc.id,
+      name: parsed.data.name,
+      address: parsed.data.address,
+      userId: userId,
+      createdAt: data?.createdAt
+    };
+
+    console.log(`[PUT /homes] Updated home:`, updatedHome);
+    res.json(updatedHome);
+  } catch (err) {
+    console.error("Error updating home", err);
+    res.status(500).json({ error: "Failed to update home" });
+  }
+});
+
 // DELETE /homes/:id - delete a home (only if owned by user)
 router.delete("/:id", async (req: AuthedRequest, res) => {
   try {
